@@ -1,0 +1,54 @@
+#! /bin/bash
+
+weather_key=206471517a842a0f;
+zipcode=02143;
+api_prefix=http://api.wunderground.com/api/206471517a842a0f/;
+if [ -z "$1" ]
+then
+    echo -e "\n==========[[ WEATHER BASH ]]==========\n
+This can be used to quickly check the weather for a given zipcode from the command line. It uses cURL to reach out to the Weather Uderground API to provide information\n
+    OPTIONS:\n
+    [-s] - Summary\n
+    [-c] - Complete Forecast\n
+    [--z][zipcode] - specify a zipcode (default zipcode is 02143)\n
+"
+    exit;
+elif [ "$2" == "--z" ]
+then
+    if [ -z "$3" ]
+    then
+        echo "FAIL: Must specify a zipcode if using the [--z] argument";
+        exit;
+    else
+	export zipcode=$3;
+    fi
+fi
+if [ "$1" = "-c" ]
+then
+   fulldata=$(curl -s ${api_prefix}forecast/q/${zipcode}.json | sed -e 's@[",{}]@@g');
+   find_town=$(curl -s ${api_prefix}geolookup/q/${zipcode}.json | sed -e 's@[",{}]@@g');
+   town=$(echo -e "$find_town" | grep -m1 "city\:" | cut -d ":" -f2 | awk '{print toupper($0)}');
+   echo -e "\n\t----- FULL FORECAST FOR $town -----\n";
+   echo -e "\n$fulldata" | grep "title\|fcttext\:" | while read -r line; do
+      if [[ "$line" =~ "title" ]]
+      then
+         text=$(echo -e "$line" | cut -d ':' -f2); 
+         echo -e "======= $text =======";
+      else
+         text=$(echo -e "$line" | cut -d ':' -f2);
+         echo -e "$text\n";
+      fi
+   done;
+  # echo -e "\n$fulldata";
+else
+   weatherdata=$(curl -s ${api_prefix}conditions/q/${zipcode}.json | sed -e 's@[",{}]@@g');
+   location=$(echo -e "\n$weatherdata" | grep -m1 full | cut -d ':' -f2);
+   temperature=$(echo -e "\n$weatherdata" | grep -m1 temperature_string | cut -d ':' -f2);
+   feelslike=$(echo -e "\n$weatherdata" | grep -m1 feelslike_f | cut -d ':' -f2);
+   weather=$(echo -e "\n$weatherdata" | grep -m1 weather\: | cut -d ':' -f2);
+
+   echo -e "\n\t======= $location =======\n
+\t$weather\n
+\t$temperature\n
+\tFeels Like ${feelslike}deg\n";
+fi
